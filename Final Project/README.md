@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icons/logo.png" width="150" alt="MediaPlayer IVI Logo">
+  <img src="logo.png" width="150" alt="MediaPlayer IVI Logo">
 </p>
 
 <h1 align="center">MediaPlayer IVI</h1>
@@ -323,7 +323,7 @@ This project intentionally focuses on four things:
 ## Supervision
 
 <p align="center">
-  <img src="icons/iti.png" width="120" alt="ITI Logo"><br><br>
+  <img src="iti.png" width="120" alt="ITI Logo"><br><br>
   <b>Under supervision of ITI</b><br>
   Information Technology Institute
 </p>
