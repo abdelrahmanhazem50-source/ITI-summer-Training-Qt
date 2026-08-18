@@ -1,117 +1,336 @@
-# MediaPlayer IVI
+<p align="center">
+  <img src="icons/logo.png" width="150" alt="MediaPlayer IVI Logo">
+</p>
 
-A Qt 6 / QML / C++ in-vehicle infotainment media player developed for the ITI Embedded Linux final project.
+<h1 align="center">MediaPlayer IVI</h1>
 
-The application combines local music, internet radio, USB media, phone-to-IVI Bluetooth audio, and local video playback in one interface.
+<p align="center">
+  <b>A Linux infotainment media hub built with Qt 6, QML and C++.</b><br>
+  Local music • Live radio • USB media • Phone Bluetooth audio • Video playback
+</p>
 
-## Features
+<p align="center">
+  <img src="https://img.shields.io/badge/Qt-6-41CD52?logo=qt&logoColor=white" alt="Qt 6">
+  <img src="https://img.shields.io/badge/QML-Qt%20Quick-41CD52" alt="QML">
+  <img src="https://img.shields.io/badge/C++-17-00599C?logo=cplusplus&logoColor=white" alt="C++17">
+  <img src="https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black" alt="Linux">
+  <img src="https://img.shields.io/badge/Multimedia-FFmpeg-007808?logo=ffmpeg&logoColor=white" alt="FFmpeg">
+</p>
 
-- Local audio folders
-- Internet radio with custom station support
-- USB audio folders
-- Bluetooth phone audio receiver workflow
-- Local video playback
-- Play / Pause / Stop / Next / Previous
-- Audio and video seeking
-- Volume and mute controls
-- Audio metadata display
-- ITI supervision splash screen
+---
 
-## Architecture
+## Overview
+
+**MediaPlayer IVI** is an in-vehicle-infotainment-style media player designed around one simple idea: give every common media source a consistent interface without overcomplicating the implementation.
+
+The application brings together five media modes inside one Qt interface:
+
+| Source | What it does |
+|---|---|
+| **Local Media** | Loads audio folders and builds a playable track list |
+| **Live Radio** | Streams internet radio stations and supports custom station URLs |
+| **USB Media** | Plays audio from a mounted USB drive using the same local-media engine |
+| **Bluetooth** | Lets a phone pair with the Linux IVI system and send audio to the IVI |
+| **Video** | Plays local video files with dedicated playback and volume controls |
+
+The UI is designed as a compact head-unit interface rather than a traditional desktop music player, with large controls, clear source switching and minimal navigation depth.
+
+---
+
+## Interface Highlights
+
+### Unified media navigation
+
+The main navigation keeps every source one action away. Local Media, Radio, USB, Bluetooth and Video all use the same visual language so switching sources does not feel like opening separate applications.
+
+### Full audio playback
+
+- Play / Pause
+- Stop
+- Previous / Next
+- Seek through tracks
+- Volume control
+- Mute / Unmute
+- Track metadata
+- Automatic next-track playback
+- Clickable playlist
+
+### Live radio
+
+- Built-in internet radio stations
+- Live stream playback through `QMediaPlayer`
+- Add custom stations from inside the application
+- Station name, country and stream URL support
+- Dedicated live-radio interface
+
+### USB media
+
+USB playback intentionally reuses the local-media pipeline. Once Linux mounts the drive, the application treats it as a normal folder and builds the playlist from supported files.
+
+### Phone → IVI Bluetooth audio
+
+Bluetooth in this project is used in the IVI direction:
+
+```text
+PHONE  ──Bluetooth──>  LINUX IVI SYSTEM  ──>  IVI AUDIO
+```
+
+The application opens the Linux Bluetooth manager for pairing and device management. Linux handles the Bluetooth connection and incoming audio route while the Qt application provides the IVI-facing workflow.
+
+### Integrated video player
+
+Video is presented as a first-class source rather than a separate utility. The video page uses Qt Multimedia directly with:
+
+```text
+MediaPlayer
+   ├──> VideoOutput
+   └──> AudioOutput
+```
+
+It includes file selection, play/pause, stop, seeking, playback time and volume control.
+
+---
+
+## System Architecture
+
+The project uses a small frontend/backend architecture that is easy to follow and easy to maintain.
 
 ```mermaid
 flowchart TD
-    User --> QML[Main.qml UI]
+    USER[User] --> UI[Main.qml\nQML Interface]
 
-    QML --> Audio[AudioPlayer C++ Backend]
-    Audio --> QMP[QMediaPlayer]
+    UI --> LOCAL[Local Media]
+    UI --> RADIO[Live Radio]
+    UI --> USB[USB Media]
+    UI --> BT[Bluetooth]
+    UI --> VIDEO[Video]
+
+    LOCAL --> AUDIO[AudioPlayer\nC++ Backend]
+    RADIO --> AUDIO
+    USB --> AUDIO
+
+    AUDIO --> QMP[QMediaPlayer]
     QMP --> QAO[QAudioOutput]
-    QAO --> LinuxAudio[Linux Audio]
+    QAO --> LINUX[Linux Audio System]
 
-    Local[Local Folder] --> Audio
-    USB[Mounted USB Folder] --> Audio
-    Radio[HTTPS Radio Stream] --> Audio
+    BT --> BTMGR[Linux Bluetooth Manager]
+    PHONE[Phone] --> BLUEZ[BlueZ / Linux Bluetooth]
+    BLUEZ --> LINUX
 
-    Phone[Phone] --> BlueZ[Linux Bluetooth / BlueZ]
-    BlueZ --> LinuxAudio
-    QML --> BluetoothManager[System Bluetooth Manager]
+    VIDEO --> VPLAYER[QML MediaPlayer]
+    VPLAYER --> VOUT[VideoOutput]
+    VPLAYER --> VAUDIO[AudioOutput]
+    VAUDIO --> LINUX
 
-    QML --> VideoPlayer[QML MediaPlayer]
-    VideoPlayer --> VideoOutput
-    VideoPlayer --> VideoAudio[AudioOutput]
-    VideoAudio --> LinuxAudio
+    LINUX --> SPEAKERS[IVI Speakers / Audio Device]
 ```
 
-## Bluetooth direction
-
-Bluetooth in this project means:
+### The project in one line
 
 ```text
-PHONE -> BLUETOOTH -> IVI SYSTEM -> IVI SPEAKERS
+USER → QML UI → C++ / Qt Multimedia → LINUX → AUDIO & VIDEO HARDWARE
 ```
 
-The application does not try to run several `bluetoothctl` commands itself anymore. The **Pair Phone** and **Bluetooth Devices** buttons safely open the Linux Bluetooth manager using `QProcess::startDetached()`.
+---
 
-Pairing and the incoming Bluetooth audio route are handled by Linux. This keeps the Qt application simple and avoids blocking or unstable Bluetooth command execution inside the GUI process.
+## How the Main Media Paths Work
 
-## Radio stability
+### Local Media
 
-The radio implementation was hardened after runtime testing exposed crashes with the first version.
+```text
+Choose Folder
+     ↓
+FolderDialog
+     ↓
+AudioPlayer::loadFolder()
+     ↓
+QDir scans supported files
+     ↓
+QStringList playlist
+     ↓
+QMediaPlayer
+     ↓
+QAudioOutput
+```
 
-The current version:
+### Live Radio
 
-- uses HTTPS default station URLs published by the MP3Quran radio API;
-- validates custom station URLs before saving them;
-- stops and clears the previous media source before switching stations;
-- queues the new live source for the next Qt event-loop turn;
-- does **not** run the normal End-of-Media auto-next logic for live streams;
-- reports a failed stream through the normal error dialog instead of rapidly cycling through stations.
+```text
+Choose Station
+     ↓
+Station URL
+     ↓
+AudioPlayer::playRadioStation()
+     ↓
+QMediaPlayer
+     ↓
+Internet Stream
+     ↓
+QAudioOutput
+```
 
-This keeps local-file auto-next behavior while treating live streams separately.
+Local tracks and radio streams deliberately share the same `QMediaPlayer`. The source changes, but the playback engine stays the same.
 
-## Build
+### USB
 
-Open `CMakeLists.txt` in Qt Creator and select a Qt 6 Desktop kit with:
+```text
+USB Drive
+   ↓
+Linux Mount Point
+   ↓
+Choose USB Folder
+   ↓
+AudioPlayer::loadFolder()
+   ↓
+Same playlist / playback path as Local Media
+```
 
+### Bluetooth
+
+```text
+Phone
+  ↓
+Bluetooth Pairing
+  ↓
+Linux Bluetooth Stack
+  ↓
+Linux Audio Route
+  ↓
+IVI Audio Output
+```
+
+### Video
+
+```text
+Choose Video
+     ↓
+QML MediaPlayer
+   ↙             ↘
+VideoOutput    AudioOutput
+   ↓             ↓
+Display       Linux Audio
+```
+
+---
+
+## Project Structure
+
+```text
+MediaPlayer_IVI/
+│
+├── CMakeLists.txt
+├── main.cpp
+├── Main.qml
+├── audioplayer.h
+├── audioplayer.cpp
+│
+├── icons/
+│   ├── logo.png
+│   ├── iti.png
+│   ├── play.png
+│   ├── pause.png
+│   ├── previous.png
+│   ├── next.png
+│   ├── stop.png
+│   ├── volume.png
+│   ├── mute.png
+│   ├── folder.png
+│   ├── radio.png
+│   ├── usb.png
+│   ├── bluetooth.png
+│   ├── phone.png
+│   └── video.png
+│
+├── STEP_BY_STEP_EXPLANATION.md
+├── TEST_REPORT.md
+├── CHANGELOG.md
+└── FULL_CODE.txt
+```
+
+---
+
+## Core Technologies
+
+| Technology | Role in the project |
+|---|---|
+| **Qt 6** | Main application framework |
+| **QML / Qt Quick** | Complete graphical interface |
+| **C++17** | Audio backend and Linux integration |
+| **Qt Multimedia** | Audio, radio and video playback |
+| **QMediaPlayer** | Main local/radio audio engine |
+| **QAudioOutput** | Audio volume and output control |
+| **VideoOutput** | Video rendering |
+| **QDir** | Local and USB media discovery |
+| **QProcess** | Launching Linux Bluetooth tools |
+| **CMake** | Project configuration and build system |
+| **Linux** | Target environment and device services |
+
+---
+
+## Build & Run
+
+### Requirements
+
+- Qt 6
 - Qt Quick
 - Qt Multimedia
-- C++17 support
+- CMake
+- C++17-compatible compiler
+- Linux
 
-A fresh build directory is recommended when switching between project versions.
+### Qt Creator
 
-## Main files
+1. Clone or download the repository.
+2. Open `CMakeLists.txt` in Qt Creator.
+3. Select a Qt 6 Desktop kit.
+4. Configure the project.
+5. Build and run.
 
-- `Main.qml` — complete UI, audio controls, radio interface, Bluetooth page, splash screen, and video player
-- `audioplayer.h` — C++ backend interface exposed to QML
-- `audioplayer.cpp` — local audio, playlist, radio, and Linux Bluetooth-manager integration
-- `main.cpp` — application startup and QML type registration
-- `CMakeLists.txt` — Qt project configuration
-- `STEP_BY_STEP_EXPLANATION.md` — detailed explanation of the whole project
-- `TEST_REPORT.md` — internal verification for this package
-- `FULL_CODE.txt` — all source files combined for easy review
-- `CHANGELOG.md` — summary of the radio/Bluetooth stability fixes
+### Command Line
 
-## Project flow in one line
-
-```text
-USER -> QML -> C++ BACKEND -> QT MULTIMEDIA -> LINUX -> HARDWARE
+```bash
+cmake -S . -B build
+cmake --build build
+./build/appMediaPlayerIVI
 ```
 
-Video follows a direct QML multimedia path:
+> If Qt Creator has previously built another version of the project, using a fresh build directory is recommended.
 
-```text
-QML MediaPlayer -> VideoOutput
-                -> AudioOutput
-```
+---
 
-Bluetooth follows the operating-system path:
+## Documentation
 
-```text
-PHONE -> Linux Bluetooth stack -> Linux audio -> IVI speakers
-```
+Want to understand how every part works?
+
+- **[Step-by-Step Explanation](STEP_BY_STEP_EXPLANATION.md)** — complete beginner-friendly walkthrough of the project
+- **[Test Report](TEST_REPORT.md)** — package and implementation verification
+- **[Full Combined Source](FULL_CODE.txt)** — all source files in one place for quick review
+- **[Changelog](CHANGELOG.md)** — implementation notes for the final stable package
+
+---
+
+## Design Goals
+
+This project intentionally focuses on four things:
+
+1. **Simple architecture** — QML handles the interface, C++ handles the main audio logic.
+2. **Reusable playback paths** — Local Media, USB and Radio reuse the same backend where possible.
+3. **IVI-style usability** — large controls and straightforward source switching.
+4. **Readable code** — the implementation stays close to the level taught in the course and avoids unnecessary abstraction.
+
+---
 
 ## Supervision
 
-The splash screen includes:
+<p align="center">
+  <img src="icons/iti.png" width="120" alt="ITI Logo"><br><br>
+  <b>Under supervision of ITI</b><br>
+  Information Technology Institute
+</p>
 
-**Under supervision of ITI — Information Technology Institute**
+---
+
+<p align="center">
+  <b>MediaPlayer IVI</b><br>
+  Qt • QML • C++ • Embedded Linux • Multimedia
+</p>
