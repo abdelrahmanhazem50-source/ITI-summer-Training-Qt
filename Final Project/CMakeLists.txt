@@ -1,27 +1,46 @@
-# Changelog
+cmake_minimum_required(VERSION 3.16)
 
-## Version 1.5 — Stability Fix
+project(MediaPlayerIVI VERSION 1.5 LANGUAGES CXX)
 
-### Bluetooth
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-- Removed synchronous `bluetoothctl` command execution from the Qt GUI process.
-- Removed `enableBluetoothReceiver()` from C++, QML, and documentation.
-- **Pair Phone** now opens the system Bluetooth manager using `QProcess::startDetached()`.
-- **Bluetooth Devices** uses the same safe system-manager path.
-- Phone-to-IVI Bluetooth direction is unchanged; Linux handles pairing and incoming audio routing.
+find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia)
+qt_standard_project_setup(REQUIRES 6.8)
 
-### Live Radio
+qt_add_executable(appMediaPlayerIVI
+    main.cpp
+    audioplayer.cpp
+    audioplayer.h
+)
 
-- Replaced legacy default HTTP stream URLs with HTTPS streams published by the MP3Quran radio API.
-- Added URL validation for built-in/custom stations.
-- Stop and clear the previous source before changing a live stream.
-- Queue live-source startup with `QTimer::singleShot(0, ...)` to avoid re-entrant source changes.
-- Excluded radio mode from local-file `EndOfMedia` auto-next behavior.
-- Kept normal Qt error reporting so an unavailable stream shows an error instead of destabilizing the app.
+qt_add_qml_module(appMediaPlayerIVI
+    URI audio_player_live
+    VERSION 1.0
+    QML_FILES
+        Main.qml
+    RESOURCES
+        icons/logo.png
+        icons/folder.png
+        icons/radio.png
+        icons/usb.png
+        icons/bluetooth.png
+        icons/video.png
+        icons/disc.png
+        icons/previous.png
+        icons/play.png
+        icons/pause.png
+        icons/stop.png
+        icons/next.png
+        icons/mute.png
+        icons/volume.png
+        icons/plus.png
+        icons/open.png
+        icons/cast.png
+        icons/phone.png
+        icons/iti.png
+)
 
-### Documentation
-
-- Updated README.
-- Rewritten step-by-step explanation to match the final code.
-- Updated internal test report.
-- Regenerated FULL_CODE.txt.
+target_link_libraries(appMediaPlayerIVI
+    PRIVATE Qt6::Quick Qt6::Multimedia
+)
