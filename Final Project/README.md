@@ -241,10 +241,7 @@ MediaPlayer_IVI/
 │   ├── phone.png
 │   └── video.png
 │
-├── STEP_BY_STEP_EXPLANATION.md
-├── TEST_REPORT.md
-├── CHANGELOG.md
-└── FULL_CODE.txt
+└── README.md
 ```
 
 ---
